@@ -1,0 +1,69 @@
+research_task:
+  description: >
+    Conduct thorough research about {destination}, including attractions, travel seasons, and key travel insights.
+  expected_output: >
+    A list of 10 key insights about {destination}.
+  agent: tour_planner
+
+# itinerary_task:
+#   description: >
+#     Based on research, design a detailed travel itinerary for {destination}.
+#   expected_output: >
+#     A structured itinerary for each day.
+#   agent: itinerary_analyst
+
+# local_insights_task:
+#   description: >
+#     Research cultural aspects, customs, and must-know travel tips.
+#   expected_output: >
+#     A cultural insights guide.
+#   agent: local_guide_expert
+
+# budget_optimization_task:
+#   description: >
+#     Calculate travel expenses and suggest budget-friendly options.
+#   expected_output: >
+#     A detailed cost breakdown.
+#   agent: budget_planner
+
+# transportation_task:
+#   description: >
+#     Plan the best transportation options.
+#   expected_output: >
+#     A transportation guide.
+#   agent: logistics_coordinator
+
+# accommodation_task:
+#   description: >
+#     Find the best accommodations based on budget and preferences.
+#   expected_output: >
+#     A list of top recommended accommodations.
+#   agent: accommodation_specialist
+
+# food_dining_task:
+#   description: >
+#     Research the best restaurants and must-try local foods.
+#   expected_output: >
+#     A food & dining guide.
+#   agent: food_dining_expert
+
+# adventure_activities_task:
+#   description: >
+#     Suggest adventure sports, outdoor activities, and unique experiences.
+#   expected_output: >
+#     A list of recommended activities.
+#   agent: adventure_activities_planner
+
+# weather_packing_task:
+#   description: >
+#     Provide a weather forecast and suggest packing essentials.
+#   expected_output: >
+#     A weather and packing guide.
+#   agent: weather_packing_advisor
+
+# emergency_safety_task:
+#   description: >
+#     Compile important emergency contacts and safety tips.
+#   expected_output: >
+#     A safety & emergency guide.
+#   agent: emergency_safety_advisor
