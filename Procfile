@@ -1,0 +1,1 @@
+web: streamlit run src/sample_project/app.py

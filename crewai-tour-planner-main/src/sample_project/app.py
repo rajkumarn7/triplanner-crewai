@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 from crewai import Task, Crew
 from crew import TourPlanningProject
+import streamlit as st
 
 # Load environment variables
 load_dotenv()
@@ -42,18 +43,36 @@ def get_seasonal_weather(city, season):
     return None
 
 # Function to fetch mock weather
-def get_mock_weather(city):
-    url = f"http://127.0.0.1:8000/weather?city={city}"
-    response = requests.get(url)
-    if response.status_code == 200:
-        return response.json()
-    return None
+def get_mock_weather(city, scenario="sunny_day"):
+    mock_weather_data = {
+        "sunny_day": {
+            "temperature": 28,
+            "condition": "Sunny",
+            "icon": "//cdn.weatherapi.com/weather/64x64/day/113.png"
+        },
+        "rainy_day": {
+            "temperature": 18,
+            "condition": "Moderate rain",
+            "icon": "//cdn.weatherapi.com/weather/64x64/day/302.png"
+        },
+        "snowy_day": {
+            "temperature": -2,
+            "condition": "Light snow",
+            "icon": "//cdn.weatherapi.com/weather/64x64/day/326.png"
+        },
+        "storm": {
+            "temperature": 22,
+            "condition": "Thunderstorm",
+            "icon": "//cdn.weatherapi.com/weather/64x64/day/200.png"
+        }
+    }
+    return mock_weather_data.get(scenario.lower().replace(' ', '_'))
 
 # Streamlit UI
 def main():
     st.set_page_config(page_title="AI Tour Planner", page_icon="🌍", layout="wide")
 
-    st.markdown("<h1 class='center-text'>🌍 AI Tour Planner with Weather Insights</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 class='center-text'>🌍 DEEPWEAVER AI TRIP PLANNER FOR SMARTVISIT</h1>", unsafe_allow_html=True)
     st.markdown("---")
 
     # Trip Input Section
@@ -95,19 +114,28 @@ def main():
                 try:
                     # Fetch Weather Data based on API selection
                     if use_mock_api:
-                        weather_url = f"http://127.0.0.1:8000/weather?city={destination}&scenario={mock_api_option.lower().replace(' ', '_')}"
-                        current_weather = get_mock_weather(destination)
+                        scenario = mock_api_option.lower().replace(' ', '_')
+                        current_weather = get_mock_weather(destination, scenario)
                         st.session_state["real_weather"] = current_weather
                         st.session_state["mock_weather"] = current_weather
+                        
+                        # Use mock data for seasonal weather
+                        st.session_state["seasonal_weather"] = {
+                            "Spring": get_mock_weather(destination, "sunny_day"),
+                            "Summer": get_mock_weather(destination, "sunny_day"),
+                            "Fall": get_mock_weather(destination, "rainy_day"),
+                            "Winter": get_mock_weather(destination, "snowy_day")
+                        }
                     else:
                         current_weather = get_current_weather(destination)
                         st.session_state["real_weather"] = current_weather
                         st.session_state["mock_weather"] = None
-
-                    # Fetch seasonal weather data
-                    st.session_state["seasonal_weather"] = {
-                        season: get_seasonal_weather(destination, season) for season in ["Spring", "Summer", "Fall", "Winter"]
-                    }
+                        
+                        # Fetch real seasonal weather data
+                        st.session_state["seasonal_weather"] = {
+                            season: get_seasonal_weather(destination, season) 
+                            for season in ["Spring", "Summer", "Fall", "Winter"]
+                        }
 
                     # Display Weather Data First
                     st.markdown("## 🌦 Weather Information")
@@ -156,6 +184,9 @@ def main():
 
                     # Initialize the crew
                     project = TourPlanningProject()
+                    weather_info = f"""
+                        Current Weather: Temperature: {current_weather.get('temperature', 'N/A')}°C, Condition: {current_weather.get('condition', 'N/A')}
+                        """
                     task = Task(
                         description=f"""
                         Plan a trip to {destination} for {duration} days starting {start_date}.
@@ -163,7 +194,7 @@ def main():
                         Interests: {', '.join(interests)}
                         
                         Weather Information:
-                        Current Weather: Temperature: {current_weather['temperature']}°C, Condition: {current_weather['condition']}
+                        Current Weather: {weather_info}
                         Seasonal Weather:
                         Spring: Temperature: {st.session_state['seasonal_weather']['Spring']['temperature']}°C, Condition: {st.session_state['seasonal_weather']['Spring']['condition']}
                         Summer: Temperature: {st.session_state['seasonal_weather']['Summer']['temperature']}°C, Condition: {st.session_state['seasonal_weather']['Summer']['condition']}
