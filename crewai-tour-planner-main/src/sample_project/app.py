@@ -108,7 +108,27 @@ def main():
                             st.write(f"🌤 **{mock_weather['icon']} {mock_weather['condition']}**")
                             st.write(f"**Temperature:** {mock_weather['temperature']}°C")
 
-                    
+                    # Seasonal Weather Display (Side-by-Side Flex Layout)
+                    if st.session_state["seasonal_weather"]:
+                        st.markdown("### 📅 Seasonal Weather")
+
+                        # Create four columns for Spring, Summer, Fall, and Winter
+                        col1, col2, col3, col4 = st.columns(4)
+
+                        seasons = ["Spring", "Summer", "Fall", "Winter"]
+                        cols = [col1, col2, col3, col4]
+
+                        for season, col in zip(seasons, cols):
+                            season_weather = st.session_state["seasonal_weather"].get(season)
+                            if season_weather:
+                                with col:
+                                    st.markdown(f"#### {season}")
+                                    st.image(f"http:{season_weather['icon']}", width=80)
+                                    st.write(f"**Avg Temp:** {season_weather['temperature']}°C")
+                                    st.write(f"**Condition:** {season_weather['condition']}")
+                            else:
+                                with col:
+                                    st.warning(f"{season} data unavailable.")
 
                     # Trip Planning
                     st.markdown("---")
