@@ -59,6 +59,17 @@ def main():
     # Trip Input Section
     st.header("📝 Plan Your Trip")
 
+    # Add Weather API Selection
+    col1, col2 = st.columns([1, 2])
+    with col1:
+        use_mock_api = st.toggle("Use Mock Weather API", value=False)
+    with col2:
+        if use_mock_api:
+            mock_api_option = st.selectbox(
+                "Select Mock Weather Scenario",
+                ["Sunny Day", "Rainy Day", "Snowy Day", "Storm"]
+            )
+
     col1, col2, col3 = st.columns(3)
     with col1:
         destination = st.text_input("📍 Destination")
@@ -77,14 +88,23 @@ def main():
 
     st.markdown("---")
 
-    # Generate Trip Plan
+    # Modify the weather fetching section
     if st.button("🚀 Generate Trip Plan", key="generate"):
         if destination:
             with st.spinner('🔄 Fetching weather data and generating your trip plan...'):
                 try:
-                    # Fetch Weather Data (Only on Button Click)
-                    st.session_state["real_weather"] = get_current_weather(destination)
-                    st.session_state["mock_weather"] = get_mock_weather(destination)
+                    # Fetch Weather Data based on API selection
+                    if use_mock_api:
+                        weather_url = f"http://127.0.0.1:8000/weather?city={destination}&scenario={mock_api_option.lower().replace(' ', '_')}"
+                        current_weather = get_mock_weather(destination)
+                        st.session_state["real_weather"] = current_weather
+                        st.session_state["mock_weather"] = current_weather
+                    else:
+                        current_weather = get_current_weather(destination)
+                        st.session_state["real_weather"] = current_weather
+                        st.session_state["mock_weather"] = None
+
+                    # Fetch seasonal weather data
                     st.session_state["seasonal_weather"] = {
                         season: get_seasonal_weather(destination, season) for season in ["Spring", "Summer", "Fall", "Winter"]
                     }
@@ -141,8 +161,20 @@ def main():
                         Plan a trip to {destination} for {duration} days starting {start_date}.
                         Budget: ${budget}
                         Interests: {', '.join(interests)}
+                        
+                        Weather Information:
+                        Current Weather: Temperature: {current_weather['temperature']}°C, Condition: {current_weather['condition']}
+                        Seasonal Weather:
+                        Spring: Temperature: {st.session_state['seasonal_weather']['Spring']['temperature']}°C, Condition: {st.session_state['seasonal_weather']['Spring']['condition']}
+                        Summer: Temperature: {st.session_state['seasonal_weather']['Summer']['temperature']}°C, Condition: {st.session_state['seasonal_weather']['Summer']['condition']}
+                        Fall: Temperature: {st.session_state['seasonal_weather']['Fall']['temperature']}°C, Condition: {st.session_state['seasonal_weather']['Fall']['condition']}
+                        Winter: Temperature: {st.session_state['seasonal_weather']['Winter']['temperature']}°C, Condition: {st.session_state['seasonal_weather']['Winter']['condition']}
+                        
+                        Please consider the current and seasonal weather conditions when planning activities. 
+                        Suggest indoor alternatives for bad weather and outdoor activities for good weather.
+                        Make appropriate recommendations based on the temperature and conditions.
                         """,
-                        expected_output="A detailed travel plan including recommendations based on the provided preferences and budget.",
+                        expected_output="A detailed travel plan including weather-appropriate recommendations based on the provided preferences, budget, and current/seasonal weather conditions.",
                         agent=project.tour_planner()
                     )
 
