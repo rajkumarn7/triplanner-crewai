@@ -25,17 +25,10 @@ def get_current_weather(city):
 
 # Function to fetch seasonal weather
 def get_seasonal_weather(city, season):
-    # Mapping seasons to approximate months
-    season_months = {
-        "Spring": "03-15",
-        "Summer": "06-15",
-        "Fall": "09-15",
-        "Winter": "12-15"
-    }
-    
+    season_months = {"Spring": "03-15", "Summer": "06-15", "Fall": "09-15", "Winter": "12-15"}
     if season not in season_months:
         return None
-    
+
     url = f"http://api.weatherapi.com/v1/history.json?key={WEATHER_API_KEY}&q={city}&dt=2024-{season_months[season]}"
     response = requests.get(url)
     
@@ -48,56 +41,81 @@ def get_seasonal_weather(city, season):
         }
     return None
 
+# Function to fetch mock weather
+def get_mock_weather(city):
+    url = f"http://127.0.0.1:8000/weather?city={city}"
+    response = requests.get(url)
+    if response.status_code == 200:
+        return response.json()
+    return None
+
 # Streamlit UI
 def main():
-    st.title("AI Tour Planner with Weather Insights")
+    st.set_page_config(page_title="AI Tour Planner", page_icon="🌍", layout="wide")
 
-    # Input fields
-    st.header("Trip Details")
-    destination = st.text_input("Destination")
-    start_date = st.date_input("Start Date")
-    duration = st.number_input("Duration (days)", min_value=1, max_value=30, value=7)
-    budget = st.number_input("Budget ($)", min_value=100, value=1000)
+    st.markdown("<h1 class='center-text'>🌍 AI Tour Planner with Weather Insights</h1>", unsafe_allow_html=True)
+    st.markdown("---")
+
+    # Trip Input Section
+    st.header("📝 Plan Your Trip")
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        destination = st.text_input("📍 Destination")
+    with col2:
+        start_date = st.date_input("📆 Start Date")
+    with col3:
+        duration = st.number_input("🕒 Duration (days)", min_value=1, max_value=30, value=7)
+
+    budget = st.slider("💰 Budget ($)", min_value=100, max_value=5000, value=1000, step=100)
 
     # Preferences
-    st.header("Preferences")
     interests = st.multiselect(
-        "Select your interests",
+        "🎯 Select Your Interests",
         ["Culture", "Food", "Adventure", "Nature", "Shopping", "History"]
     )
 
-    if destination:
-        # Fetch current weather
-        weather = get_current_weather(destination)
-        if weather:
-            st.header(f"Current Weather in {destination}")
-            st.image(f"http:{weather['icon']}")
-            st.write(f"**Temperature:** {weather['temperature']}°C")
-            st.write(f"**Condition:** {weather['condition']}")
-        else:
-            st.warning("Could not fetch current weather.")
+    st.markdown("---")
 
-        # Fetch and display seasonal weather
-        st.header(f"Seasonal Weather in {destination}")
-        seasons = ["Spring", "Summer", "Fall", "Winter"]
-        for season in seasons:
-            season_weather = get_seasonal_weather(destination, season)
-            if season_weather:
-                st.subheader(f"{season}:")
-                st.image(f"http:{season_weather['icon']}")
-                st.write(f"**Avg Temperature:** {season_weather['temperature']}°C")
-                st.write(f"**Condition:** {season_weather['condition']}")
-            else:
-                st.warning(f"Weather data for {season} is unavailable.")
-
-    if st.button("Generate Trip Plan"):
+    # Generate Trip Plan
+    if st.button("🚀 Generate Trip Plan", key="generate"):
         if destination:
-            with st.spinner('Generating your perfect trip plan...'):
+            with st.spinner('🔄 Fetching weather data and generating your trip plan...'):
                 try:
+                    # Fetch Weather Data (Only on Button Click)
+                    st.session_state["real_weather"] = get_current_weather(destination)
+                    st.session_state["mock_weather"] = get_mock_weather(destination)
+                    st.session_state["seasonal_weather"] = {
+                        season: get_seasonal_weather(destination, season) for season in ["Spring", "Summer", "Fall", "Winter"]
+                    }
+
+                    # Display Weather Data First
+                    st.markdown("## 🌦 Weather Information")
+                    col1, col2 = st.columns(2)
+
+                    with col1:
+                        weather = st.session_state["real_weather"]
+                        if weather:
+                            st.markdown(f"### 🌍 Current Weather in {destination} (Real API)")
+                            st.image(f"http:{weather['icon']}", width=80)
+                            st.write(f"**Temperature:** {weather['temperature']}°C")
+                            st.write(f"**Condition:** {weather['condition']}")
+
+                    with col2:
+                        mock_weather = st.session_state["mock_weather"]
+                        if mock_weather:
+                            st.markdown(f"### 🏷 Today's Weather in {destination} (Mock API)")
+                            st.write(f"🌤 **{mock_weather['icon']} {mock_weather['condition']}**")
+                            st.write(f"**Temperature:** {mock_weather['temperature']}°C")
+
+                    
+
+                    # Trip Planning
+                    st.markdown("---")
+                    st.markdown("## 🗺 Your Travel Itinerary")
+
                     # Initialize the crew
                     project = TourPlanningProject()
-                    
-                    # Create the task
                     task = Task(
                         description=f"""
                         Plan a trip to {destination} for {duration} days starting {start_date}.
@@ -107,7 +125,7 @@ def main():
                         expected_output="A detailed travel plan including recommendations based on the provided preferences and budget.",
                         agent=project.tour_planner()
                     )
-                    
+
                     # Get the crew and run
                     crew = Crew(
                         agents=[project.tour_planner()],
@@ -115,14 +133,15 @@ def main():
                         verbose=True
                     )
                     result = crew.kickoff()
-                    
-                    # Display results
-                    st.success("Trip Plan Generated!")
-                    st.write(result)
+
+                    st.success("🎉 Trip Plan Generated!")
+                    trip_plan = getattr(result, "raw", "❌ No trip plan generated. Please try again.")
+                    st.markdown(trip_plan)
+
                 except Exception as e:
-                    st.error(f"An error occurred: {str(e)}")
+                    st.error(f"⚠️ An error occurred: {str(e)}")
         else:
-            st.error("Please enter a destination")
+            st.error("❌ Please enter a destination")
 
 if __name__ == "__main__":
     main()
