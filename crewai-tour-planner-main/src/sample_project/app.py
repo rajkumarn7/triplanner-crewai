@@ -123,6 +123,15 @@ def main():
 
     if "loading" not in st.session_state:
         st.session_state.loading = False
+
+    if "user_input" not in st.session_state:
+        st.session_state.user_input = ''
+
+    if "user_response_fetched" not in st.session_state:
+        st.session_state.user_response_fetched = False
+
+    if "prev_user_message" not in st.session_state:
+        st.session_state.prev_user_message = ""
     
     # Modify the weather fetching section
     if st.button("🚀 Generate Trip Plan", key="generate"):
@@ -270,13 +279,19 @@ def main():
 
 
         # Chatbox for conversation continuation
+        if st.session_state.user_response_fetched:
+            st.session_state.user_response_fetched = False
+            st.session_state.user_input = ''
+
         user_message = st.text_area("Continue the conversation:", "", key="user_input")
         
         if st.session_state.loading:
             st.button("Submit", disabled=True)
         else:
+            #if st.button("Submit") or (st.session_state.prev_user_message != user_message):
             if st.button("Submit"):
-                
+                st.session_state.prev_user_message = user_message
+
                 if user_message.strip() and st.session_state.crew:
                     st.session_state.loading = True
                     with st.spinner('🔄 Updating trip plan...'):
@@ -298,6 +313,7 @@ def main():
 
                         st.session_state.chat_history.append(("AI", response))
                         st.session_state.loading = False
+                        st.session_state.user_response_fetched = True
                         st.rerun()  # Refresh UI to display updated chat history
 
                 elif not st.session_state.crew:
