@@ -215,9 +215,7 @@ def main():
                         """
                     agent = project.tour_planner()
                     st.session_state.agent = agent
-                    
-                    task = Task(
-                        description=f"""
+                    st.session_state.initial_details = f"""
                         Plan a trip to {destination} for {duration} days starting {start_date}.
                         Budget: ${budget}
                         Interests: {', '.join(interests)}
@@ -233,7 +231,10 @@ def main():
                         Please consider the current and seasonal weather conditions when planning activities. 
                         Suggest indoor alternatives for bad weather and outdoor activities for good weather.
                         Make appropriate recommendations based on the temperature and conditions.
-                        """,
+                        """
+                    
+                    task = Task(
+                        description=st.session_state.initial_details,
                         expected_output="A detailed travel plan including weather-appropriate recommendations based on the provided preferences, budget, and current/seasonal weather conditions.",
                         agent=agent
                     )
@@ -298,15 +299,21 @@ def main():
                         st.session_state.chat_history.append(("User", user_message))
                         #st.rerun()  # Refresh UI to display updated chat history
                         
+                        conversation_context = "\n".join(
+                            [f"{role}: {message}" for role, message in st.session_state.chat_history]
+                        )
+
+                        conversation_context = "Initial Request:"  + st.session_state.initial_details + "\n" + conversation_context
+
                         # Call CrewAI for the next response
                         follow_up_task = Task(
-                            description=user_message,
+                            description=conversation_context,
                             agent=st.session_state.agent,  # Use the same agent
                             expected_output="A well-structured travel itinerary."
                         )
 
                         # Add the new task to the Crew
-                        st.session_state.crew.tasks.append(follow_up_task)
+                        st.session_state.crew.tasks = [follow_up_task]
 
                         # Run CrewAI with the new task
                         response = st.session_state.crew.kickoff()
