@@ -30,11 +30,11 @@ def get_current_weather(city):
 
 # Function to fetch seasonal weather
 def get_seasonal_weather(city, season):
-    season_months = {"Spring": "03-15", "Summer": "06-15", "Fall": "09-15", "Winter": "12-15"}
+    season_months = {"Spring": "2025-03-15", "Summer": "2024-06-15", "Fall": "2024-09-15", "Winter": "2024-12-15"}
     if season not in season_months:
         return None
 
-    url = f"http://api.weatherapi.com/v1/history.json?key={WEATHER_API_KEY}&q={city}&dt=2024-{season_months[season]}"
+    url = f"http://api.weatherapi.com/v1/history.json?key={WEATHER_API_KEY}&q={city}&dt={season_months[season]}"
     response = requests.get(url)
     
     if response.status_code == 200:
