@@ -8,7 +8,7 @@ import os
 from dotenv import load_dotenv
 from crewai import Task, Crew
 from crew import TourPlanningProject
-import streamlit as st
+import content_validator as Validator
 
 # Load environment variables
 load_dotenv()
@@ -75,10 +75,83 @@ def get_mock_weather(city, scenario="sunny_day"):
 # Streamlit UI
 def main():
     st.set_page_config(page_title="AI Tour Planner", page_icon="🌍", layout="wide")
-
+        
     st.markdown("<h1 class='center-text'>🌍 DEEPWEAVER AI TRIP PLANNER FOR SMARTVISIT</h1>", unsafe_allow_html=True)
     st.markdown("---")
 
+    # location = streamlit_js_eval(js_expressions="navigator.geolocation.getCurrentPosition((pos) => pos.coords)", want_output=True)
+    # print(location)
+
+    # Inject custom CSS for tab styling
+    st.markdown(
+        """
+        <style>
+            div[data-baseweb="tab-list"] {
+                
+            }
+            button[data-baseweb="tab"] {
+                padding: 5px 35px !important;  /* Increase padding */
+            }
+            button[data-baseweb="tab"] p {
+                font-size: 25px !important;  /* Increase font size */
+            }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    if "window_selected" not in st.session_state:
+        st.session_state.window_selected = "Chat"
+    
+    if "window_type" not in st.session_state:
+        st.session_state.window_type = ""
+    
+    if "parsed_content" not in st.session_state:
+        st.session_state.parsed_content = {}
+
+    if "pre_chat_history" not in st.session_state:
+        st.session_state.pre_chat_history = []
+        st.session_state.pre_chat_history.append(("AI", "Welcome to Athens, How can I help you?"))
+    
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
+
+    if "crew" not in st.session_state:
+        st.session_state.crew = None
+
+    if "initial_response_fetched" not in st.session_state:
+        st.session_state.initial_response_fetched = False
+
+    if "loading" not in st.session_state:
+        st.session_state.loading = False
+
+    if "user_input_chat" not in st.session_state:
+        st.session_state.user_input_chat = ''
+    
+    if "user_input_plan" not in st.session_state:
+        st.session_state.user_input_plan = ''
+
+    if "user_response_fetched" not in st.session_state:
+        st.session_state.user_response_fetched = False
+
+    if "prev_user_message" not in st.session_state:
+        st.session_state.prev_user_message = ""
+    
+
+    tab1, tab2 = st.tabs(["Chat", "Plan"])
+    with tab1:
+        chat_trip()
+    with tab2:
+        plan_trip()
+
+def chat_trip():
+    st.header("Conversation")
+
+    chatConversations()
+    userChatArea()
+    submitBtn()
+
+def plan_trip():
     # Trip Input Section
     st.header("📝 Plan Your Trip")
 
@@ -111,31 +184,13 @@ def main():
 
     st.markdown("---")
 
-    # Initialize session state for chat
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
-
-    if "crew" not in st.session_state:
-        st.session_state.crew = None
-
-    if "initial_response_fetched" not in st.session_state:
-        st.session_state.initial_response_fetched = False
-
-    if "loading" not in st.session_state:
-        st.session_state.loading = False
-
-    if "user_input" not in st.session_state:
-        st.session_state.user_input = ''
-
-    if "user_response_fetched" not in st.session_state:
-        st.session_state.user_response_fetched = False
-
-    if "prev_user_message" not in st.session_state:
-        st.session_state.prev_user_message = ""
-    
     # Modify the weather fetching section
-    if st.button("🚀 Generate Trip Plan", key="generate"):
+    generate_btn = st.button("🚀 Generate Trip Plan", key="generate")
+    if generate_btn:
         if destination:
+            st.session_state.window_type = "Plan"
+            st.session_state.window_selected = "Plan"
+            st.session_state.pre_chat_history = []
             with st.spinner('🔄 Fetching weather data and generating your trip plan...'):
                 try:
                     # Fetch Weather Data based on API selection
@@ -209,12 +264,12 @@ def main():
                     st.markdown("## 🗺 Your Travel Itinerary")
 
                     # Initialize the crew
-                    project = TourPlanningProject()
                     weather_info = f"""
                         Current Weather: Temperature: {current_weather.get('temperature', 'N/A')}°C, Condition: {current_weather.get('condition', 'N/A')}
                         """
-                    agent = project.tour_planner()
-                    st.session_state.agent = agent
+                    
+                    initializeAgent()
+                    
                     st.session_state.initial_details = f"""
                         Plan a trip to {destination} for {duration} days starting {start_date}.
                         Budget: ${budget}
@@ -236,12 +291,12 @@ def main():
                     task = Task(
                         description=st.session_state.initial_details,
                         expected_output="A detailed travel plan including weather-appropriate recommendations based on the provided preferences, budget, and current/seasonal weather conditions.",
-                        agent=agent
+                        agent=st.session_state.agent
                     )
 
                     # Get the crew and run
                     st.session_state.crew = Crew(
-                        agents=[agent],
+                        agents=[st.session_state.agent],
                         tasks=[task],
                         verbose=True
                     )
@@ -262,7 +317,14 @@ def main():
     if st.session_state.initial_response_fetched:
         # Display chat history
         st.write("Travel Recommendations")
-        for role, message in st.session_state.chat_history:
+        
+        chatConversations()
+        userChatArea()
+        submitBtn()
+
+def chatConversations():
+    for chat_history in [st.session_state.pre_chat_history, st.session_state.chat_history]:
+        for role, message in chat_history:
             if role == "User":
                 # Right-aligned, grey background for User messages
                 st.markdown(f"""
@@ -278,53 +340,143 @@ def main():
                 </div>
                 """, unsafe_allow_html=True)
 
+def userChatArea():
+    # Chatbox for conversation continuation
+    if st.session_state.user_response_fetched:
+        st.session_state.user_response_fetched = False
+        st.session_state.user_input_chat = ''
+        st.session_state.user_input_plan = ''
 
-        # Chatbox for conversation continuation
-        if st.session_state.user_response_fetched:
-            st.session_state.user_response_fetched = False
-            st.session_state.user_input = ''
+    text_area_key = "user_input_chat"
+    if st.session_state.window_type == "Plan":
+        text_area_key = "user_input_plan"
 
-        user_message = st.text_area("Continue the conversation:", "", key="user_input")
-        
-        if st.session_state.loading:
-            st.button("Submit", disabled=True)
-        else:
-            #if st.button("Submit") or (st.session_state.prev_user_message != user_message):
-            if st.button("Submit"):
-                st.session_state.prev_user_message = user_message
+    user_message = st.text_area("Continue the conversation:", "", key=text_area_key)
+    st.session_state.user_message = user_message
 
-                if user_message.strip() and st.session_state.crew:
-                    st.session_state.loading = True
-                    with st.spinner('🔄 Updating trip plan...'):
-                        st.session_state.chat_history.append(("User", user_message))
-                        #st.rerun()  # Refresh UI to display updated chat history
-                        
-                        conversation_context = "\n".join(
-                            [f"{role}: {message}" for role, message in st.session_state.chat_history]
-                        )
+def initializeAgent():
+    if "agent" not in st.session_state:
+        project = TourPlanningProject()
+        st.session_state.agent = project.tour_planner()
 
+def submitBtn():
+
+    submit_btn_key = "submit_chat"
+    if st.session_state.window_type == "Plan":
+        submit_btn_key = "submit_plan"
+
+    if st.session_state.loading:
+        st.button("Submit", disabled=True, key=submit_btn_key)
+    
+    else:
+        #if st.button("Submit", key=submit_btn_key) or (st.session_state.prev_user_message != user_message):
+        if st.button("Submit", key=submit_btn_key):
+            user_message = st.session_state.user_message
+            st.session_state.prev_user_message = user_message
+
+            if st.session_state.window_type == "" and st.session_state.window_selected == "Chat":
+                st.session_state.window_type = "Chat"
+
+            if st.session_state.window_type == "Chat" and st.session_state.crew is None:
+                # if details haven't provided, then st.rerun() breaks the session code further
+                parseChatRequestAndProceed(user_message)
+                
+                initializeAgent()
+
+                st.session_state.crew = Crew(
+                    agents=[st.session_state.agent],
+                    tasks=[],
+                    verbose=True
+                )
+            
+            if user_message.strip() and st.session_state.crew:
+                st.session_state.loading = True
+                with st.spinner('🔄 Updating trip plan...'):
+                    st.session_state.chat_history.append(("User", user_message))
+                    #st.rerun()  # Refresh UI to display updated chat history
+                    
+                    conversation_context = "\n".join(
+                        [f"{role}: {message}" for role, message in st.session_state.chat_history]
+                    )
+
+                    if st.session_state.window_type == "Plan":
                         conversation_context = "Initial Request:"  + st.session_state.initial_details + "\n" + conversation_context
 
-                        # Call CrewAI for the next response
-                        follow_up_task = Task(
-                            description=conversation_context,
-                            agent=st.session_state.agent,  # Use the same agent
-                            expected_output="A well-structured travel itinerary."
-                        )
+                    if st.session_state.window_type == "Plan":
+                        task_expected_output = "A well-structured travel itinerary."
+                    else:
+                        # task_expected_output = "A well-structured travel itinerary is shown only after the user provided destination, start date, budget and no of days of travel. Don't show the itineray or suggest anything till they provided these details."
+                        task_expected_output = """
+                                Initially provide - a table-structured travel itinerary, after that make changes or provide recommendations only.
+                                If they inquired about bus travels then recommend BigBusTours (https://www.bigbustours.com/en/athens/athens-bus-tours) else don't say about it.
+                                If last asked question is not about itinerary and any other request, then response only for that and don't show full itinerary unless explicity requested.
+                                If user asks about customizing plan such as cheap options, suggest travel guide - Response like connect to live travel agent.
+                                If user asks you to do something like book bus or if your response is similiar to 'I am an AI' instead Response like connect to live travel agent. 
+                                Importantly don't mention I am an AI, instead I can help you by redirecting to live travel agent or request a call back later
+                                """
+                        
+                        # Only after the customer asks to redirect to live agent, show summarize content with budget, no. of days, start date, interests and itinerary plan.
+                                
+                                
+                    # Call CrewAI for the next response
+                    follow_up_task = Task(
+                        description=conversation_context,
+                        agent=st.session_state.agent,  # Use the same agent
+                        expected_output=task_expected_output
+                    )
 
-                        # Add the new task to the Crew
-                        st.session_state.crew.tasks = [follow_up_task]
+                    # Add the new task to the Crew
+                    st.session_state.crew.tasks = [follow_up_task]
 
-                        # Run CrewAI with the new task
-                        response = st.session_state.crew.kickoff()
+                    # Run CrewAI with the new task
+                    response = st.session_state.crew.kickoff()
 
-                        st.session_state.chat_history.append(("AI", response))
-                        st.session_state.loading = False
-                        st.session_state.user_response_fetched = True
-                        st.rerun()  # Refresh UI to display updated chat history
+                    st.session_state.chat_history.append(("AI", response))
+                    st.session_state.loading = False
+                    st.session_state.user_response_fetched = True
+                    st.rerun()  # Refresh UI to display updated chat history
 
-                elif not st.session_state.crew:
-                    st.error("Please submit the trip details first before continuing the chat.")
+            elif not st.session_state.crew:
+                st.error("Please submit the trip details first before continuing the chat.")
+
+def parseChatRequestAndProceed(user_message):
+
+    st.session_state.loading = True
+    with st.spinner('🔄 Updating trip plan...'):
+        conversation_context = "\n".join(
+            [f"{role}: {message}" for role, message in st.session_state.pre_chat_history]
+        )
+        conversation_context += "\n" + "User: " + user_message
+        parsedContent = Validator.parseContent(conversation_context)
+
+        follow_up_question = []
+
+        # if "destination" not in parsedContent or parsedContent["destination"] is None:
+        #     follow_up_question.append("What is your Destination? ")
+
+        if "start_date" not in parsedContent or parsedContent["start_date"] is None:
+            follow_up_question.append("What is your Start Date? ")
+
+        if "budget" not in parsedContent or parsedContent["budget"] is None:
+            follow_up_question.append("What is your Budget? ")
+        if "no_of_days" not in parsedContent or parsedContent["no_of_days"] is None:
+            follow_up_question.append("For how many days you plan this trip? ")
+        
+        print(follow_up_question)
+
+        if len(follow_up_question) == 0:
+            for role, message in st.session_state.pre_chat_history:
+                st.session_state.chat_history.append((role, message))
+
+            st.session_state.pre_chat_history = []
+            st.session_state.loading = False
+        else:
+            follow_up_question = "\n".join(x for x in follow_up_question)
+            st.session_state.pre_chat_history.append(("User", user_message))
+            st.session_state.pre_chat_history.append(("AI", follow_up_question))
+            st.session_state.loading = False
+            st.session_state.user_response_fetched = True
+            st.rerun()
 
 if __name__ == "__main__":
     main()

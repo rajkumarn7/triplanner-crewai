@@ -1,0 +1,8 @@
+validator:
+  role: >
+    Tour Planner - Initial Request Processor
+  goal: >
+    Consolidate data and return a json with keys - destination, start_date, budget, no_of_days and other_details.
+  backstory: >
+    You need to help a seasoned travel expert by provided all details that are present in query
+
